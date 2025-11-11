@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Halloween Vocabulary Match</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入字體 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        /* 點選單字時的樣式 */
+        .selected-word {
+            background-color: #f3e8ff; /* purple-100 */
+            border-color: #a855f7; /* purple-500 */
+            color: #a855f7; /* purple-500 */
+            box-shadow: 0 0 0 2px #a855f7;
+        }
+        /* 點選解釋時的樣式 */
+        .selected-definition {
+            background-color: #d1fae5; /* green-100 */
+            border-color: #10b981; /* green-500 */
+            color: #059669; /* green-600 */
+            box-shadow: 0 0 0 2px #10b981;
+        }
+        /* 配對成功時的樣式 */
+        .matched {
+            background-color: #374151; /* gray-700 */
+            border-color: #4b5563; /* gray-600 */
+            opacity: 0.5;
+            cursor: not-allowed;
+            color: #d1d5db; /* gray-300 */
+        }
+        /* 配對錯誤時的閃爍效果 */
+        .wrong-match {
+            animation: shake 0.5s;
+            background-color: #fee2e2; /* red-100 */
+            border-color: #ef4444; /* red-500 */
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 min-h-screen flex items-center justify-center p-4">
+
+    <main class="w-full max-w-6xl bg-gray-800 rounded-xl shadow-2xl p-6 md:p-10 border-4 border-orange-500">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-orange-500">
+                <span class="inline-block mr-2">🎃</span>
+                Halloween Vocabulary Match
+                <span class="inline-block ml-2">👻</span>
+            </h1>
+        </header>
+
+        <!-- 狀態和進度顯示 -->
+        <div class="text-center my-4 space-y-2">
+            <p id="status-message" class="text-lg font-semibold text-gray-300 h-7">Please select a word and a definition.</p>
+            <p id="progress-tracker" class="text-md font-medium text-orange-400">Progress: 0 / 12</p>
+        </div>
+
+        <!-- 遊戲主區域 -->
+        <div id="game-board" class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+            <!-- 單字欄 -->
+            <div id="word-list" class="flex flex-col gap-3">
+                <!-- 單字卡片將由 JavaScript 動態生成 -->
+            </div>
+            
+            <!-- 解釋欄 -->
+            <div id="definition-list" class="flex flex-col gap-3">
+                <!-- 解釋卡片將由 JavaScript 動態生成 -->
+            </div>
+        </div>
+
+        <!-- 控制按鈕 -->
+        <footer class="text-center mt-8">
+            <button id="reset-button" class="px-8 py-3 bg-orange-600 text-white font-semibold rounded-lg shadow-md hover:bg-orange-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 focus:ring-offset-gray-800">
+                Reset Game
+            </button>
+        </footer>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. 資料
+            const gameData = [
+                { id: 1, word: 'Pumpkin', definition: 'A large, round, orange fruit used to make jack-o\'-lanterns.' },
+                { id: 2, word: 'Ghost', definition: 'The spirit of a dead person, often depicted as pale and translucent.' },
+                { id: 3, word: 'Witch', definition: 'A woman thought to have magic powers, often wearing a pointed hat and riding a broom.' },
+                { id: 4, word: 'Bat', definition: 'A flying mammal active at night, often associated with vampires.' },
+                { id: 5, word: 'Spider', definition: 'An eight-legged creature that spins webs.' },
+                { id: 6, word: 'Skeleton', definition: 'The complete set of bones of a human or animal.' },
+                { id: 7, word: 'Vampire', definition: 'A mythical creature that feeds on the blood of the living.' },
+                { id: 8, word: 'Haunted', definition: 'Describes a place inhabited or visited by ghosts.' },
+                { id: 9, word: 'Cauldron', definition: 'A large metal pot used by witches for brewing potions.' },
+                { id: 10, word: 'Costume', definition: 'A set of clothes worn to look like a specific character or thing.' },
+                { id: 11, word: 'Spooky', definition: 'Frightening or unsettling in a fun way.' },
+                { id: 12, word: 'Trick or Treat', definition: 'The custom of children going house-to-house asking for candy on Halloween.' }
+            ];
+
+            const totalPairs = gameData.length;
+
+            // 2. DOM 元素
+            const wordList = document.getElementById('word-list');
+            const definitionList = document.getElementById('definition-list');
+            const statusMessage = document.getElementById('status-message');
+            const progressTracker = document.getElementById('progress-tracker');
+            const resetButton = document.getElementById('reset-button');
+
+            // 3. 遊戲狀態
+            let selectedWordCard = null;
+            let selectedDefinitionCard = null;
+            let matchedPairs = 0;
+            let lockBoard = false;
+
+            // 4. 輔助函式: 洗牌
+            function shuffle(array) {
+                let currentIndex = array.length, randomIndex;
+                while (currentIndex != 0) {
+                    randomIndex = Math.floor(Math.random() * currentIndex);
+                    currentIndex--;
+                    [array[currentIndex], array[randomIndex]] = [
+                        array[randomIndex], array[currentIndex]];
+                }
+                return array;
+            }
+
+            // 5. 輔助函式: 建立卡片
+            function createCard(item, type) {
+                const card = document.createElement('div');
+                card.classList.add('p-4', 'bg-gray-700', 'text-gray-100', 'border-2', 'border-gray-600', 'rounded-lg', 'shadow-sm', 'cursor-pointer', 'transition-all', 'duration-200', 'hover:shadow-md', 'hover:border-orange-400', 'min-h-[60px]', 'flex', 'items-center', 'justify-center', 'text-center');
+                card.textContent = item[type];
+                card.dataset.id = item.id;
+                card.dataset.type = type;
+                
+                card.addEventListener('click', () => handleCardClick(card));
+                return card;
+            }
+
+            // 6. 遊戲初始化
+            function initGame() {
+                selectedWordCard = null;
+                selectedDefinitionCard = null;
+                matchedPairs = 0;
+                lockBoard = false;
+
+                wordList.innerHTML = '';
+                definitionList.innerHTML = '';
+
+                const words = gameData.map(item => ({ id: item.id, word: item.word }));
+                const definitions = gameData.map(item => ({ id: item.id, definition: item.definition }));
+
+                const shuffledWords = shuffle(words);
+                const shuffledDefinitions = shuffle(definitions);
+
+                shuffledWords.forEach(item => {
+                    wordList.appendChild(createCard(item, 'word'));
+                });
+                shuffledDefinitions.forEach(item => {
+                    definitionList.appendChild(createCard(item, 'definition'));
+                });
+
+                updateStatus('Please select a word and a definition.', 'default');
+                updateProgress();
+            }
+
+            // 7. 卡片點擊處理
+            function handleCardClick(card) {
+                if (lockBoard || card.classList.contains('matched')) {
+                    return;
+                }
+
+                const type = card.dataset.type;
+
+                if (type === 'word') {
+                    if (selectedWordCard === card) {
+                        card.classList.remove('selected-word');
+                        selectedWordCard = null;
+                    } else {
+                        if (selectedWordCard) {
+                            selectedWordCard.classList.remove('selected-word');
+                        }
+                        selectedWordCard = card;
+                        card.classList.add('selected-word');
+                    }
+                } else if (type === 'definition') {
+                    if (selectedDefinitionCard === card) {
+                        card.classList.remove('selected-definition');
+                        selectedDefinitionCard = null;
+                    } else {
+                        if (selectedDefinitionCard) {
+                            selectedDefinitionCard.classList.remove('selected-definition');
+                        }
+                        selectedDefinitionCard = card;
+                        card.classList.add('selected-definition');
+                    }
+                }
+
+                if (selectedWordCard && selectedDefinitionCard) {
+                    checkMatch();
+                }
+            }
+
+            // 8. 檢查配對
+            function checkMatch() {
+                lockBoard = true;
+                const wordId = selectedWordCard.dataset.id;
+                const defId = selectedDefinitionCard.dataset.id;
+
+                if (wordId === defId) {
+                    matchedPairs++;
+                    updateStatus('Correct! 🎃', 'correct');
+                    
+                    selectedWordCard.classList.add('matched');
+                    selectedDefinitionCard.classList.add('matched');
+                    
+                    selectedWordCard.classList.remove('selected-word');
+                    selectedDefinitionCard.classList.remove('selected-definition');
+
+                    selectedWordCard = null;
+                    selectedDefinitionCard = null;
+                    
+                    updateProgress();
+
+                    if (matchedPairs === totalPairs) {
+                        updateStatus('Great! All matched! 👻', 'correct');
+                    } else {
+                        lockBoard = false;
+                    }
+                } else {
+                    updateStatus('Wrong, try again... 🦇', 'wrong');
+
+                    selectedWordCard.classList.add('wrong-match');
+                    selectedDefinitionCard.classList.add('wrong-match');
+
+                    setTimeout(() => {
+                        if (selectedWordCard) selectedWordCard.classList.remove('selected-word');
+                        if (selectedDefinitionCard) selectedDefinitionCard.classList.remove('selected-definition');
+                        if (selectedWordCard) selectedWordCard.classList.remove('wrong-match');
+                        if (selectedDefinitionCard) selectedDefinitionCard.classList.remove('wrong-match');
+                        
+                        selectedWordCard = null;
+                        selectedDefinitionCard = null;
+                        
+                        lockBoard = false;
+                        
+                        if (matchedPairs < totalPairs) {
+                            updateStatus('Please select a word and a definition.', 'default');
+                        }
+                    }, 1000);
+                }
+            }
+
+            // 9. 更新 UI 輔助函式
+            function updateStatus(message, type = 'default') {
+                statusMessage.textContent = message;
+                statusMessage.classList.remove('text-green-400', 'text-red-400', 'text-gray-300');
+                if (type === 'correct') {
+                    statusMessage.classList.add('text-green-400');
+                } else if (type === 'wrong') {
+                    statusMessage.classList.add('text-red-400');
+                } else {
+                    statusMessage.classList.add('text-gray-300');
+                }
+            }
+
+            function updateProgress() {
+                progressTracker.textContent = `Progress: ${matchedPairs} / ${totalPairs}`;
+            }
+
+            // 10. 事件監聽
+            resetButton.addEventListener('click', initGame);
+
+            // 11. 啟動遊戲
+            initGame();
+        });
+    </script>
+</body>
+</html>
